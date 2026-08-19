@@ -1,0 +1,21 @@
+server:
+  port: 18080
+
+spring:
+  application:
+    name: gogo-agent
+
+sa-token:
+  # Token前端需要携带的请求头
+  token-name: Authorization
+  # 过期时间
+  active-timeout: 2592000
+  dynamic-active-timeout: false
+  # 是否允许多地登录
+  is-concurrent: true
+  # 相同用户多次登录是否使用同一token
+  is-share: false
+  # token格式 随机128位
+  token-style: random-128
+  # 关闭启动日志
+  is-print: false
