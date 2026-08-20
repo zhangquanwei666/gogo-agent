@@ -4,6 +4,18 @@ server:
 spring:
   application:
     name: gogo-agent
+  web:
+    resources:
+      # 前端是 frontend/ 下的 Vite 工程，npm run build 后产物在 frontend/dist，
+      # 指到这里就能用 http://localhost:18080/ 直接访问打包后的页面。
+      # 开发阶段走 npm run dev（5173 端口 + vite proxy），不依赖这条配置。
+      # 前四项是 Spring Boot 的默认值，覆盖这个配置时必须带上，否则默认目录会失效
+      static-locations:
+        - classpath:/META-INF/resources/
+        - classpath:/resources/
+        - classpath:/static/
+        - classpath:/public/
+        - file:./frontend/dist/
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://rm-bp12mcri2l7712aw2io.mysql.rds.aliyuncs.com:3306/gogo-agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
