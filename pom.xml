@@ -22,6 +22,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sa-token.version>1.39.0</sa-token.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
     </properties>
 
     <dependencies>
@@ -31,9 +32,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!--必须用 boot3 starter：boot2 starter 依赖 sa-token-servlet -> javax.servlet，
+            Boot 4 是 jakarta 命名空间，用 boot2 starter 会在启动时找不到类-->
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot-starter</artifactId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
             <version>${sa-token.version}</version>
         </dependency>
 
@@ -42,10 +45,54 @@
             <artifactId>sa-token-redis-jackson</artifactId>
             <version>${sa-token.version}</version>
         </dependency>
+        <!--mybatis-plus-->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+
+        <!--MP 3.5.9 起 jsqlparser 被拆成独立模块-->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+
+        <!--MySQL 驱动-->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--只取 BCrypt 密码加密-->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!--Boot 4 自带的是 Jackson 3（tools.jackson.*），而 sa-token-redis-jackson 用的是 Jackson 2，
+            不补这个依赖启动时会 ClassNotFoundException: com.fasterxml.jackson.databind.JsonSerializer。
+            两套 Jackson 包名完全不同，可以共存-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.21.6</version>
+        </dependency>
+
+        <!--sa-token 序列化 LocalDateTime 要用 Jackson 2 的 JSR-310 模块-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.21.6</version>
+        </dependency>
+
+        <!--lombok，版本由 spring-boot-starter-parent 管理（1.18.46）-->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

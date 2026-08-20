@@ -4,6 +4,48 @@ server:
 spring:
   application:
     name: gogo-agent
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://rm-bp12mcri2l7712aw2io.mysql.rds.aliyuncs.com:3306/gogo-agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: gogo_agent
+    password: Zqw123456
+
+  data:
+    redis:
+      # sa-token 用它存 token / session，不配就跑不起来
+      host: XXX
+      port: 6379
+      # 没有密码就把这行整个删掉，留空字符串也会被当成密码去认证
+      password: XXX
+      # 库序号 0~15
+      database: 0
+      # 连接超时
+      timeout: 5000ms
+      lettuce:
+        pool:
+          # 最大连接数
+          max-active: 16
+          # 最大空闲连接
+          max-idle: 8
+          # 最小空闲连接
+          min-idle: 0
+          # 拿不到连接时的最大等待时间，-1ms 表示无限等
+          max-wait: -1ms
+
+mybatis-plus:
+  # mapper xml 位置
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.quanwei.gogo.agent.entity
+  configuration:
+    # 下划线字段名自动转驼峰属性名
+    map-underscore-to-camel-case: true
+    # 开发期打印 SQL，上线记得关掉
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      # 全局主键策略：数据库自增
+      id-type: auto
 
 sa-token:
   # Token前端需要携带的请求头
