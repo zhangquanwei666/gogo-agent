@@ -23,6 +23,19 @@ public enum ErrorCodeEnum {
 
     /* ---------- 401 认证失败 ---------- */
     ACCOUNT_OR_PASSWORD_ERROR(401, "账号或密码错误"),
+    NOT_LOGIN(401, "当前会话未登录，请先登录"),
+
+    MESSAGE_ROLE_INVALID(400, "消息角色不合法，可选值：user / agent / system"),
+    FEEDBACK_INVALID(400, "反馈类型不合法，可选值：LIKE / DISLIKE"),
+    MESSAGE_CONTENT_EMPTY(400, "消息内容不能为空"),
+    USER_ID_EMPTY(400, "用户ID不能为空"),
+    CONVERSATION_ID_EMPTY(400, "会话ID不能为空"),
+    MESSAGE_ID_EMPTY(400, "消息ID不能为空"),
+
+    /* ---------- 404 资源不存在 ---------- */
+    USER_NOT_FOUND(404, "用户不存在"),
+    CONVERSATION_NOT_FOUND(404, "会话不存在或无权访问"),
+    MESSAGE_NOT_FOUND(404, "消息不存在"),
 
     /* ---------- 409 业务冲突 ---------- */
     USERNAME_DUPLICATED(409, "登录账号已存在"),

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.quanwei.gogo.agent.bo.UserLoginBO;
 import com.quanwei.gogo.agent.bo.UserLoginResultBO;
 import com.quanwei.gogo.agent.bo.UserRegisterBO;
+import com.quanwei.gogo.agent.bo.UserInfoBO;
 import com.quanwei.gogo.agent.bo.UserRegisterResultBO;
 import com.quanwei.gogo.agent.entity.UserAccount;
 
@@ -28,6 +29,13 @@ public interface UserAccountService {
      *         两种情况用同一个错误码，避免被拿来枚举账号
      */
     UserLoginResultBO login(UserLoginBO userLoginBO);
+
+    /**
+     * 按业务主键查用户信息，查询当前登录用户时用
+     *
+     * @throws com.quanwei.gogo.agent.exception.BizException 用户不存在时抛出
+     */
+    UserInfoBO getUserInfo(String userId);
 
     /** 分页查询 */
     IPage<UserAccount> pageQuery(long pageNo, long pageSize, String username, String realName);

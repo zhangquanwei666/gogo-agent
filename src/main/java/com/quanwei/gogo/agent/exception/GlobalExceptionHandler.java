@@ -1,5 +1,6 @@
 package com.quanwei.gogo.agent.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.quanwei.gogo.agent.common.BaseResponse;
 import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,13 @@ public class GlobalExceptionHandler {
     public BaseResponse handleBiz(BizException e) {
         log.warn("业务异常：code={}, msg={}", e.getErrorCode().getCode(), e.getMessage());
         return BaseResponse.fail(e.getErrorCode().getCode(), e.getMessage());
+    }
+
+    /** sa-token 的未登录异常：没带 token、token 无效、已过期、被踢下线等 */
+    @ExceptionHandler(NotLoginException.class)
+    public BaseResponse handleNotLogin(NotLoginException e) {
+        log.warn("未登录访问：type={}", e.getType());
+        return BaseResponse.fail(ErrorCodeEnum.NOT_LOGIN);
     }
 
     /** 参数不合法，比如 Spring 反序列化阶段抛的 */

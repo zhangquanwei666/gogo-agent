@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import BrandPanel from '../components/BrandPanel'
 import FormField from '../components/FormField'
 import { useToast } from '../components/useToast'
 import { login } from '../api/user'
 import { ApiError, saveToken } from '../api/request'
 import { LoginType } from '../types/user'
-import type { UserLoginResp } from '../types/user'
 
 const LAST_ACCOUNT_KEY = 'gogo_last_account'
 const LAST_TYPE_KEY = 'gogo_last_type'
@@ -23,13 +22,13 @@ interface Errors {
 }
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [loginType, setLoginType] = useState<LoginType>(LoginType.USERNAME)
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<UserLoginResp | null>(null)
   const [toastEl, showToast] = useToast()
 
   const isEmailMode = loginType === LoginType.EMAIL
@@ -74,7 +73,6 @@ export default function LoginPage() {
     e.preventDefault()
     if (!validate()) return
 
-    setResult(null)
     setLoading(true)
     try {
       const data = await login({
@@ -93,9 +91,8 @@ export default function LoginPage() {
       }
 
       showToast('登录成功', 'success')
-      setResult(data)
-      // 首页还没做，先把 token 展示出来。后续在这里跳转：
-      // navigate('/')
+      // 让成功提示露个脸再跳，跳转用 replace，避免用户回退又落回登录页
+      setTimeout(() => navigate('/', { replace: true }), 600)
     } catch (err) {
       const apiErr = err as ApiError
       // 401 是账号或密码错误，直接标在密码框上；其余走顶部提示
@@ -210,22 +207,6 @@ export default function LoginPage() {
               <span>{loading ? '处理中...' : '登 录'}</span>
             </button>
           </form>
-
-          {result && (
-            <div className="result-box">
-              <b>登录成功</b>
-              <br />
-              userId：{result.userId}
-              <br />
-              用户名：{result.username}
-              <br />
-              角色：{result.role}
-              <br />
-              {result.tokenName}：{result.tokenValue}
-              <br />
-              有效期：{result.tokenTimeout} 秒
-            </div>
-          )}
 
           <p className="foot-tip">
             还没有账号？<Link className="link" to="/register">立即注册</Link>

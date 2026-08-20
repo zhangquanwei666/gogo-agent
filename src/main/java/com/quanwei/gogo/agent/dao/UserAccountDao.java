@@ -25,6 +25,14 @@ public class UserAccountDao {
         return userAccountMapper.insert(userAccount);
     }
 
+    /** 按业务主键查询 */
+    public UserAccount selectByUserId(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return null;
+        }
+        return userAccountMapper.selectById(userId);
+    }
+
     /** 按登录账号查询，登录校验用 */
     public UserAccount selectByUsername(String username) {
         if (!StringUtils.hasText(username)) {

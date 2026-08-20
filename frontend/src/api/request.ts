@@ -36,21 +36,33 @@ export function saveToken(tokenName: string, tokenValue: string): void {
   }
 }
 
-export async function post<T extends BaseResponse>(url: string, body: unknown): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json; charset=utf-8',
+export function clearToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(TOKEN_NAME_KEY)
+  } catch {
+    // 存不了也删不了，忽略
   }
+}
 
-  // 已登录时带上 token，登录注册接口本身不需要，但后续接口复用这个方法
+/** 组装请求头，已登录时带上 token */
+function buildHeaders(withBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (withBody) {
+    headers['Content-Type'] = 'application/json; charset=utf-8'
+  }
   const token = getToken()
   const tokenName = localStorage.getItem(TOKEN_NAME_KEY)
   if (token && tokenName) {
     headers[tokenName] = token
   }
+  return headers
+}
 
+async function request<T extends BaseResponse>(url: string, init: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+    res = await fetch(url, init)
   } catch {
     throw new ApiError(-1, '网络异常，请确认后端服务已启动')
   }
@@ -66,4 +78,16 @@ export async function post<T extends BaseResponse>(url: string, body: unknown): 
     throw new ApiError(data.code, data.msg || '请求失败')
   }
   return data
+}
+
+export async function post<T extends BaseResponse>(url: string, body: unknown): Promise<T> {
+  return request<T>(url, {
+    method: 'POST',
+    headers: buildHeaders(true),
+    body: JSON.stringify(body),
+  })
+}
+
+export async function get<T extends BaseResponse>(url: string): Promise<T> {
+  return request<T>(url, { method: 'GET', headers: buildHeaders(false) })
 }

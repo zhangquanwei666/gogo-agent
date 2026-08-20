@@ -3,18 +3,22 @@ package com.quanwei.gogo.agent.controller;
 import cn.dev33.satoken.stp.SaTokenInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import com.quanwei.gogo.agent.bo.UserLoginBO;
+import com.quanwei.gogo.agent.bo.UserInfoBO;
 import com.quanwei.gogo.agent.bo.UserLoginResultBO;
 import com.quanwei.gogo.agent.bo.UserRegisterBO;
 import com.quanwei.gogo.agent.bo.UserRegisterResultBO;
 import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import com.quanwei.gogo.agent.common.LoginTypeEnum;
 import com.quanwei.gogo.agent.exception.BizException;
+import com.quanwei.gogo.agent.common.BaseResponse;
+import com.quanwei.gogo.agent.dto.UserCurrentRespDTO;
 import com.quanwei.gogo.agent.dto.UserLoginReqDTO;
 import com.quanwei.gogo.agent.dto.UserLoginRespDTO;
 import com.quanwei.gogo.agent.dto.UserRegisterReqDTO;
 import com.quanwei.gogo.agent.dto.UserRegisterRespDTO;
 import com.quanwei.gogo.agent.service.UserAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -86,6 +90,36 @@ public class UserAccountController {
         response.setTokenName(tokenInfo.getTokenName());
         response.setTokenValue(tokenInfo.getTokenValue());
         response.setTokenTimeout(tokenInfo.getTokenTimeout());
+        return response;
+    }
+
+    /**
+     * 退出登录，清掉当前 token 在 Redis 里的所有痕迹。
+     * 未登录时调用不报错，sa-token 内部做了空判断，方便前端无脑调。
+     */
+    @PostMapping("/logout")
+    public BaseResponse logout() {
+        StpUtil.logout();
+        return new BaseResponse();
+    }
+
+    /**
+     * 查询当前登录用户。
+     * 用户身份取自 token，不接受外部传 userId —— 传什么就查什么等于把接口送给别人用。
+     * 未登录时 StpUtil.getLoginIdAsString() 会抛 NotLoginException，由全局异常处理器转成 401。
+     */
+    @GetMapping("/current")
+    public UserCurrentRespDTO current() {
+        String userId = StpUtil.getLoginIdAsString();
+
+        UserInfoBO userInfo = userAccountService.getUserInfo(userId);
+
+        UserCurrentRespDTO response = new UserCurrentRespDTO();
+        response.setUserId(userInfo.userId());
+        response.setUsername(userInfo.username());
+        response.setEmail(userInfo.email());
+        response.setRealName(userInfo.realName());
+        response.setRole(userInfo.role());
         return response;
     }
 }

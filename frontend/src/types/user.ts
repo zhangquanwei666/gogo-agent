@@ -53,3 +53,12 @@ export interface UserLoginResp extends BaseResponse {
   /** 剩余有效期，单位秒，-1 表示永不过期 */
   tokenTimeout: number
 }
+
+/** GET /user/current 出参，对应 UserCurrentRespDTO */
+export interface UserCurrentResp extends BaseResponse {
+  userId: string
+  username: string
+  email: string | null
+  realName: string | null
+  role: string
+}

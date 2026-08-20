@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.quanwei.gogo.agent.bo.UserLoginBO;
 import com.quanwei.gogo.agent.bo.UserLoginResultBO;
 import com.quanwei.gogo.agent.bo.UserRegisterBO;
+import com.quanwei.gogo.agent.bo.UserInfoBO;
 import com.quanwei.gogo.agent.bo.UserRegisterResultBO;
 import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import com.quanwei.gogo.agent.common.LoginTypeEnum;
@@ -97,6 +98,24 @@ public class UserAccountServiceImpl implements UserAccountService {
         }
 
         return new UserLoginResultBO(account.getUserId(),
+                account.getUsername(),
+                account.getEmail(),
+                account.getRealName(),
+                account.getRole());
+    }
+
+    @Override
+    public UserInfoBO getUserInfo(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            throw new BizException(ErrorCodeEnum.USER_ID_EMPTY);
+        }
+
+        UserAccount account = userAccountDao.selectByUserId(userId);
+        if (account == null) {
+            throw new BizException(ErrorCodeEnum.USER_NOT_FOUND);
+        }
+
+        return new UserInfoBO(account.getUserId(),
                 account.getUsername(),
                 account.getEmail(),
                 account.getRealName(),
