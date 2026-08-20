@@ -25,10 +25,10 @@ spring:
   data:
     redis:
       # sa-token 用它存 token / session，不配就跑不起来
-      host: sit-redis.91xunhui.cn
+      host: 8.140.195.110
       port: 6379
       # 没有密码就把这行整个删掉，留空字符串也会被当成密码去认证
-      password: IubEkoOC4so87Qn
+      password: AAA
       # 库序号 0~15
       database: 25
       # 连接超时
