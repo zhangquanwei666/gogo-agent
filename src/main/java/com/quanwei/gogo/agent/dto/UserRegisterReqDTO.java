@@ -18,6 +18,9 @@ public class UserRegisterReqDTO extends BaseRequest {
     /** 登录账号 */
     private String username;
 
+    /** 邮箱，选填。填了以后可以用它登录，不能和别人重复 */
+    private String email;
+
     /** 登录密码，明文传入，由 service 做 BCrypt 加密后入库 */
     private String password;
 

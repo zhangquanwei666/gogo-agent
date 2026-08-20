@@ -34,6 +34,15 @@ public class UserAccountDao {
                 .eq(UserAccount::getUsername, username));
     }
 
+    /** 按邮箱查询，邮箱登录用 */
+    public UserAccount selectByEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return null;
+        }
+        return userAccountMapper.selectOne(Wrappers.<UserAccount>lambdaQuery()
+                .eq(UserAccount::getEmail, email));
+    }
+
     /** 登录账号是否已存在 */
     public boolean existsByUsername(String username) {
         if (!StringUtils.hasText(username)) {
@@ -41,6 +50,15 @@ public class UserAccountDao {
         }
         return userAccountMapper.exists(Wrappers.<UserAccount>lambdaQuery()
                 .eq(UserAccount::getUsername, username));
+    }
+
+    /** 邮箱是否已被注册 */
+    public boolean existsByEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return false;
+        }
+        return userAccountMapper.exists(Wrappers.<UserAccount>lambdaQuery()
+                .eq(UserAccount::getEmail, email));
     }
 
     /** 分页查询，username / realName 支持模糊匹配 */

@@ -7,11 +7,13 @@ package com.quanwei.gogo.agent.bo;
  *
  * @param userId   业务主键
  * @param username 登录账号
+ * @param email    邮箱
  * @param realName 真实姓名
  * @param role     实际写入的角色
  */
 public record UserRegisterResultBO(String userId,
                                    String username,
+                                   String email,
                                    String realName,
                                    String role) {
 }

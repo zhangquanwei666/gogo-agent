@@ -19,6 +19,9 @@ public class UserRegisterRespDTO extends BaseResponse {
     /** 登录账号 */
     private String username;
 
+    /** 邮箱 */
+    private String email;
+
     /** 真实姓名 */
     private String realName;
 

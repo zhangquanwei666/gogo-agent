@@ -29,6 +29,10 @@ public class UserAccount implements Serializable {
     @TableField("username")
     private String username;
 
+    /** 邮箱，可用于登录，允许为空但不允许重复 */
+    @TableField("email")
+    private String email;
+
     /** 登录密码，存 BCrypt 密文，禁止存明文 */
     @TableField("password")
     private String password;

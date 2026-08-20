@@ -1,6 +1,8 @@
 package com.quanwei.gogo.agent.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.quanwei.gogo.agent.bo.UserLoginBO;
+import com.quanwei.gogo.agent.bo.UserLoginResultBO;
 import com.quanwei.gogo.agent.bo.UserRegisterBO;
 import com.quanwei.gogo.agent.bo.UserRegisterResultBO;
 import com.quanwei.gogo.agent.entity.UserAccount;
@@ -18,11 +20,14 @@ public interface UserAccountService {
     UserRegisterResultBO register(UserRegisterBO userRegisterBO);
 
     /**
-     * 校验账号密码
+     * 登录校验。account 先按用户名查，查不到再按邮箱查。
+     * 只做凭证校验，不签发 token —— token 由 controller 调 StpUtil 处理。
      *
-     * @return 校验通过返回账号信息，失败返回 null（不区分"账号不存在"和"密码错"，避免账号枚举）
+     * @return 校验通过的用户信息
+     * @throws com.quanwei.gogo.agent.exception.BizException 账号不存在或密码错误时抛出，
+     *         两种情况用同一个错误码，避免被拿来枚举账号
      */
-    UserAccount verifyPassword(String username, String rawPassword);
+    UserLoginResultBO login(UserLoginBO userLoginBO);
 
     /** 分页查询 */
     IPage<UserAccount> pageQuery(long pageNo, long pageSize, String username, String realName);

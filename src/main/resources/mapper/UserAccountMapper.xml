@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="com.quanwei.gogo.agent.entity.UserAccount">
         <id     column="user_id"      property="userId"/>
         <result column="username"     property="username"/>
+        <result column="email"        property="email"/>
         <result column="password"     property="password"/>
         <result column="real_name"    property="realName"/>
         <result column="role"         property="role"/>
@@ -13,7 +14,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        user_id, username, password, real_name, role, created_time, modify_time
+        user_id, username, email, password, real_name, role, created_time, modify_time
     </sql>
 
 </mapper>

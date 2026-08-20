@@ -18,9 +18,15 @@ public enum ErrorCodeEnum {
     REGISTER_PARAM_EMPTY(400, "注册参数不能为空"),
     USERNAME_EMPTY(400, "登录账号不能为空"),
     PASSWORD_EMPTY(400, "登录密码不能为空"),
+    ACCOUNT_EMPTY(400, "账号不能为空，支持用户名或邮箱"),
+    LOGIN_TYPE_INVALID(400, "登录类型不合法，可选值：USERNAME / EMAIL"),
+
+    /* ---------- 401 认证失败 ---------- */
+    ACCOUNT_OR_PASSWORD_ERROR(401, "账号或密码错误"),
 
     /* ---------- 409 业务冲突 ---------- */
     USERNAME_DUPLICATED(409, "登录账号已存在"),
+    EMAIL_DUPLICATED(409, "邮箱已被注册"),
 
     /* ---------- 500 系统异常 ---------- */
     SYSTEM_ERROR(500, "服务异常，请稍后重试"),
