@@ -14,7 +14,7 @@ export const LoginType = {
 
 export type LoginType = (typeof LoginType)[keyof typeof LoginType]
 
-/** POST /user/register 入参，对应 UserRegisterReqDTO */
+/** POST /api/v1/auth/register 入参，对应 UserRegisterReqDTO */
 export interface UserRegisterReq {
   username: string
   /** 选填，不填传 null，避免空串撞 uk_email 唯一索引 */
@@ -23,7 +23,7 @@ export interface UserRegisterReq {
   realName: string | null
 }
 
-/** POST /user/register 出参，对应 UserRegisterRespDTO */
+/** POST /api/v1/auth/register 出参，对应 UserRegisterRespDTO */
 export interface UserRegisterResp extends BaseResponse {
   userId: string
   username: string
@@ -32,14 +32,14 @@ export interface UserRegisterResp extends BaseResponse {
   role: string
 }
 
-/** POST /user/login 入参，对应 UserLoginReqDTO */
+/** POST /api/v1/auth/login 入参，对应 UserLoginReqDTO */
 export interface UserLoginReq {
   type: LoginType
   account: string
   password: string
 }
 
-/** POST /user/login 出参，对应 UserLoginRespDTO */
+/** POST /api/v1/auth/login 出参，对应 UserLoginRespDTO */
 export interface UserLoginResp extends BaseResponse {
   type: string
   userId: string
@@ -54,7 +54,7 @@ export interface UserLoginResp extends BaseResponse {
   tokenTimeout: number
 }
 
-/** GET /user/current 出参，对应 UserCurrentRespDTO */
+/** GET /api/v1/user/current 出参，对应 UserCurrentRespDTO */
 export interface UserCurrentResp extends BaseResponse {
   userId: string
   username: string

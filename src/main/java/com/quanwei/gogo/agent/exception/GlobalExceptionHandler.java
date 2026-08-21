@@ -4,8 +4,10 @@ import cn.dev33.satoken.exception.NotLoginException;
 import com.quanwei.gogo.agent.common.BaseResponse;
 import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理，避免业务异常直接以 500 堆栈页的形式抛给前端。
@@ -34,6 +36,24 @@ public class GlobalExceptionHandler {
     public BaseResponse handleIllegalArgument(IllegalArgumentException e) {
         log.warn("参数异常：{}", e.getMessage());
         return BaseResponse.fail(ErrorCodeEnum.PARAM_INVALID);
+    }
+
+    /**
+     * 路径不存在。
+     * 不单独处理的话会掉进下面的兜底分支，变成「服务异常」——
+     * 前端拿到 500 会以为是后端崩了，实际只是 URL 写错了。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public BaseResponse handleNotFound(NoResourceFoundException e) {
+        log.warn("接口不存在：{}", e.getResourcePath());
+        return BaseResponse.fail(ErrorCodeEnum.API_NOT_FOUND);
+    }
+
+    /** 请求方法不对，比如该用 POST 的接口发了 GET */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public BaseResponse handleMethodNotAllowed(HttpRequestMethodNotSupportedException e) {
+        log.warn("请求方法不支持：{}", e.getMessage());
+        return BaseResponse.fail(ErrorCodeEnum.METHOD_NOT_ALLOWED);
     }
 
     /** 兜底，不把内部异常信息抛给前端 */

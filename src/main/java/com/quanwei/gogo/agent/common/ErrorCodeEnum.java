@@ -32,7 +32,10 @@ public enum ErrorCodeEnum {
     CONVERSATION_ID_EMPTY(400, "会话ID不能为空"),
     MESSAGE_ID_EMPTY(400, "消息ID不能为空"),
 
+    METHOD_NOT_ALLOWED(405, "请求方法不被支持"),
+
     /* ---------- 404 资源不存在 ---------- */
+    API_NOT_FOUND(404, "接口不存在"),
     USER_NOT_FOUND(404, "用户不存在"),
     CONVERSATION_NOT_FOUND(404, "会话不存在或无权访问"),
     MESSAGE_NOT_FOUND(404, "消息不存在"),

@@ -37,7 +37,7 @@ function formatTime(value: string): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
 }
 
-/** 侧边的历史会话列表，数据来自 POST /chat/conversation/list */
+/** 侧边的历史会话列表，数据来自 POST /api/v1/chat/conversation/list */
 export default function ConversationPanel({ conversations, loading, onSelect }: Props) {
   return (
     <aside className="side-panel">

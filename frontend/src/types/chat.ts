@@ -8,7 +8,7 @@ export interface ChatConversation {
   updatedTime: string
 }
 
-/** POST /chat/conversation/list 出参，对应 ChatConversationListRespDTO */
+/** POST /api/v1/chat/conversation/list 出参，对应 ChatConversationListRespDTO */
 export interface ChatConversationListResp extends BaseResponse {
   total: number
   conversations: ChatConversation[]
