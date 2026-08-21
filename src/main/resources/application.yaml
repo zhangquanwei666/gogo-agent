@@ -30,7 +30,7 @@ spring:
       # 没有密码就把这行整个删掉，留空字符串也会被当成密码去认证
       password: AAA
       # 库序号 0~15
-      database: 25
+      database: 0
       # 连接超时
       timeout: 5000ms
       lettuce:
