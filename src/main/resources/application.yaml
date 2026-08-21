@@ -24,12 +24,9 @@ spring:
 
   data:
     redis:
-      # sa-token 用它存 token / session，不配就跑不起来
       host: 8.140.195.110
       port: 6379
-      # 没有密码就把这行整个删掉，留空字符串也会被当成密码去认证
-      password: AAA
-      # 库序号 0~15
+      password: Zqw123456
       database: 0
       # 连接超时
       timeout: 5000ms
@@ -58,6 +55,26 @@ mybatis-plus:
     db-config:
       # 全局主键策略：数据库自增
       id-type: auto
+
+# 智能体相关配置
+agent:
+  prompt:
+    # 提示词文件位置。classpath:prompt/ 打进 jar；
+    # 本地调 prompt 时改成 file:./prompt/ 并把 cache 关掉，改完文件刷新请求就生效
+    location: classpath:prompt/
+    cache: true
+
+# AgentScope：智能体框架的模型接入
+agentscope:
+  # 选用哪家模型实现，值必须是 openai
+  model:
+    provider: openai
+  openai:
+    enabled: true
+    base-url: https://ws-x7w2w43avkzs2abr.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+    api-key: sk-ws-H.EYHDDXY.r5Ub.MEQCIDBIanQsXyXf2frMN3S3D_axJccg8JPND-27O7lQhPwsAiB-Li_iQxqHjhEL7zrrZIJkg3jBCQ4yEoniDW4cBmex5g
+    model-name: qwen-plus
+    stream: true
 
 sa-token:
   # Token前端需要携带的请求头

@@ -23,7 +23,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sa-token.version>1.39.0</sa-token.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <agentscope.version>2.0.2</agentscope.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--AgentScope Java：多智能体框架，2.0.x 对齐 Spring Boot 4 / Spring Framework 7-->
+            <dependency>
+                <groupId>io.agentscope</groupId>
+                <artifactId>agentscope-bom</artifactId>
+                <version>${agentscope.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!--spring启动类-->
@@ -86,6 +100,13 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>2.21.6</version>
+        </dependency>
+
+        <!--AgentScope 智能体框架。选 openai starter 而不是 dashscope，
+            是因为通义/DeepSeek/豆包/Kimi 都提供 OpenAI 兼容接口，换模型只改 base-url-->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-openai-spring-boot-starter</artifactId>
         </dependency>
 
         <!--lombok，版本由 spring-boot-starter-parent 管理（1.18.46）-->
