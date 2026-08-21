@@ -1,5 +1,12 @@
 import type { BaseResponse } from '../types/user'
 
+/**
+ * 接口版本前缀。
+ * 后端所有接口都挂在 /api/v1 下，升 v2 时只改这一处，
+ * 也让 vite 代理和后端鉴权拦截器能靠 /api 前缀一刀切。
+ */
+export const API_PREFIX = '/api/v1'
+
 const TOKEN_KEY = 'gogo_token'
 const TOKEN_NAME_KEY = 'gogo_token_name'
 

@@ -19,11 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 登录 / 登出接口。
- * 路径前缀仍然是 /user，跟 RegisterController、UserAccountController 共用，
- * 拆分只是按职责分文件，对外的接口地址没有变化。
+ * 跟 RegisterController 共用 /api/v1/auth 前缀，拆分只是按职责分文件。
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/v1/auth")
 public class LoginController {
 
     @Autowired

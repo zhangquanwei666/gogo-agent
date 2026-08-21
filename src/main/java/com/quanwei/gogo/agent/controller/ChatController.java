@@ -18,7 +18,7 @@ import java.util.List;
  * 对话相关接口
  */
 @RestController
-@RequestMapping("/chat")
+@RequestMapping("/api/v1/chat")
 public class ChatController {
 
     @Autowired

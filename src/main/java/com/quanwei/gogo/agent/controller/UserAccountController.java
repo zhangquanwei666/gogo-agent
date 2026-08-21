@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 登录登出在 LoginController，注册在 RegisterController，这里只放账号信息本身的查询。
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/v1/user")
 public class UserAccountController {
 
     @Autowired
