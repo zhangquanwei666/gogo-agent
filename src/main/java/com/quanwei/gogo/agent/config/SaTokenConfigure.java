@@ -26,12 +26,18 @@ public class SaTokenConfigure implements WebMvcConfigurer {
     private static final String API_PATTERN = "/api/**";
 
     /**
-     * 无需登录即可访问的接口。
-     * 登录、注册、登出都在 /api/v1/auth 下，整段放行；
-     * 登出放行是为了让 token 已过期的用户也能正常调用，避免前端卡在中间态。
+     * 无需登录即可访问的接口，逐个列举、不用通配符。
+     *
+     * <p>用 {@code /api/v1/auth/**} 整段放行更省事，但以后往 auth 这组里新增接口
+     * （重置密码、登录设备列表之类）会自动继承免鉴权，且没有任何提示。
+     * 逐个列举的代价是加公开接口时要记得来这儿补一行 ——
+     * 忘了补的后果是接口被拦（马上能发现），比忘了收紧导致接口裸奔安全得多。
      */
     private static final String[] WHITE_LIST = {
-            "/api/v1/auth/**",
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            // 登出放行是为了让 token 已过期的用户也能正常调用，避免前端卡在中间态
+            "/api/v1/auth/logout",
             "/error",
     };
 
