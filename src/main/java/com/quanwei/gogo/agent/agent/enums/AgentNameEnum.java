@@ -11,7 +11,7 @@ import lombok.Getter;
 public enum AgentNameEnum {
 
     /** 问题改写：把带指代的追问补全成可独立理解的问题 */
-    QUERY_REWRITE("QueryRewriteAgent", "问题改写"),
+    QUERY_REWRITE("QueryRewritingAgent", "问题改写"),
     ;
 
     /** 落库和日志用的标识 */

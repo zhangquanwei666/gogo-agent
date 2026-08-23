@@ -109,6 +109,14 @@
             <artifactId>agentscope-openai-spring-boot-starter</artifactId>
         </dependency>
 
+        <!--DashScope 原生协议扩展。用它而不是 openai 兼容模式，是因为 enableThinking /
+            enableSearch 这些开关只有原生 builder 上有，兼容模式表达不了。
+            版本由 agentscope-bom 统一管，不用写 version-->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-dashscope</artifactId>
+        </dependency>
+
         <!--lombok，版本由 spring-boot-starter-parent 管理（1.18.46）-->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -64,17 +64,54 @@ agent:
     location: classpath:prompt/
     cache: true
 
-# AgentScope：智能体框架的模型接入
-agentscope:
-  # 选用哪家模型实现，值必须是 openai
+  # 模型分档配置。业务代码只声明档位（ModelTierEnum），模型名和开关全在这里，
+  # 换模型、开关思考只改这里，不用重新编译。
+  #
+  # 每档都是独立完整的一组：api-key / base-url / model-name / stream / enable-thinking
+  # 各配各的，档位之间不共享、不继承。所以强模型和快模型可以挂在两个不同的账号、
+  # 两个不同的接入地址上，互不影响。
+  # base-url 留空走 SDK 内置的百炼地址；用专属工作空间端点时在对应档位填上。
   model:
-    provider: openai
-  openai:
-    enabled: true
-    base-url: https://ws-x7w2w43avkzs2abr.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
-    api-key: sk-ws-H.EYHDDXY.r5Ub.MEQCIDBIanQsXyXf2frMN3S3D_axJccg8JPND-27O7lQhPwsAiB-Li_iQxqHjhEL7zrrZIJkg3jBCQ4yEoniDW4cBmex5g
-    model-name: qwen-plus
-    stream: true
+    # 快模型：改写、分类、抽取这类简单任务
+    fast:
+      api-key: sk-fast-xxxx
+      base-url:
+      # 1.2元/百万token，或者用最便宜的 qwen-flash 也够了，0.15元/百万token
+      model-name: qwen3.6-flash
+      stream: true
+      enable-thinking: false
+
+    # 强模型：复杂推理、多步规划才值得用
+    strong:
+      api-key: sk-strong-xxxx
+      base-url:
+      # 12元/百万token，或者用最新的 kimi/kimi-k3 20元/百万token
+      model-name: qwen3.7-max
+      stream: true
+      enable-thinking: false
+
+    # 强模型 + 深度思考，模型跟 strong 同一个，只是把开关打开
+    strong-thinking:
+      api-key: sk-strong-thinking-xxxx
+      base-url:
+      model-name: qwen3.7-max
+      stream: true
+      enable-thinking: true
+
+    # 稳定模型：中等档位，日常主力
+    stable:
+      api-key: sk-stable-xxxx
+      base-url:
+      # 6元/百万token
+      model-name: glm-5.1
+      stream: true
+      enable-thinking: false
+
+# 注：这里没有 agentscope.* 配置是有意的。
+# 模型全部由 ModelConfig 的四个 bean 管理，配置见上面的 agent.model。
+# starter 的 OpenAIAutoConfiguration 要求 agentscope.model.provider=openai 才装配
+# （该条件没有 matchIfMissing，缺失即不匹配），而且还带 @ConditionalOnMissingBean(Model.class)，
+# 所以这里留空它就不会再造一个 Model bean 出来。别为了「补全配置」把 agentscope.model.provider 加回来。
 
 sa-token:
   # Token前端需要携带的请求头
