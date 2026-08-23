@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quanwei.gogo.agent.mapper.AgentscopeSessionMapper">
+
+    <!-- 复合主键，三个 id 标签共同构成主键，缺一个都会让结果集去重出错 -->
+    <resultMap id="BaseResultMap" type="com.quanwei.gogo.agent.entity.AgentscopeSession">
+        <id     column="session_id"   property="sessionId"/>
+        <id     column="state_key"    property="stateKey"/>
+        <id     column="item_index"   property="itemIndex"/>
+        <result column="state_data"   property="stateData"/>
+        <result column="created_time" property="createdTime"/>
+        <result column="updated_time" property="updatedTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        session_id, state_key, item_index, state_data, created_time, updated_time
+    </sql>
+
+</mapper>

@@ -31,6 +31,8 @@ public enum ErrorCodeEnum {
     USER_ID_EMPTY(400, "用户ID不能为空"),
     CONVERSATION_ID_EMPTY(400, "会话ID不能为空"),
     MESSAGE_ID_EMPTY(400, "消息ID不能为空"),
+    SESSION_ID_EMPTY(400, "会话状态ID不能为空"),
+    STATE_KEY_EMPTY(400, "状态标识不能为空"),
 
     METHOD_NOT_ALLOWED(405, "请求方法不被支持"),
 

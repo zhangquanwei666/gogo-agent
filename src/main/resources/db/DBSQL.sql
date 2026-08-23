@@ -44,3 +44,14 @@ CREATE TABLE IF NOT EXISTS `chat_message`
     KEY `idx_conversation_id` (`conversation_id`),
     KEY `idx_created_time` (`created_time`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '对话消息';
+
+CREATE TABLE IF NOT EXISTS `agentscope_session`
+(
+    `session_id`   VARCHAR(255) NOT NULL COMMENT '会话标识，对应 AgentScope 侧的 sessionId',
+    `state_key`    VARCHAR(255) NOT NULL COMMENT '状态分类标识',
+    `item_index`   INT          NOT NULL DEFAULT 0 COMMENT '同一 state_key 下的序号，从 0 开始',
+    `state_data`   LONGTEXT     NOT NULL COMMENT '状态内容，一般是序列化后的 JSON',
+    `created_time` DATETIME     DEFAULT NULL COMMENT '创建时间',
+    `updated_time` DATETIME     DEFAULT NULL COMMENT '最后更新时间',
+    PRIMARY KEY (`session_id`, `state_key`, `item_index`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT = 'AgentScope 会话状态';
