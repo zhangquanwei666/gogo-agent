@@ -55,7 +55,6 @@ public class ChatConversationDao {
                 .eq(ChatConversation::getConversationId, conversationId)
                 .eq(ChatConversation::getUserId, userId)
                 .set(ChatConversation::getTitle, title)
-                // 这里是条件更新，走不到 MetaObjectHandler 的自动填充，得手动设
                 .set(ChatConversation::getUpdatedTime, LocalDateTime.now()));
     }
 
