@@ -39,6 +39,19 @@ public class ChatConversationDao {
                 .eq(ChatConversation::getUserId, userId));
     }
 
+    /**
+     * 只按会话 ID 查，不带归属条件。
+     * 给需要把「会话不存在」和「不是自己的会话」分开报错的场景用 ——
+     * selectByIdAndUserId 两种情况都返回 null，区分不出来。
+     * 用它就必须自己比对 user_id，否则等于开了个越权口子。
+     */
+    public ChatConversation selectByConversationId(String conversationId) {
+        if (!StringUtils.hasText(conversationId)) {
+            return null;
+        }
+        return chatConversationMapper.selectById(conversationId);
+    }
+
     /** 查某个用户的全部会话，最近更新的排前面 */
     public List<ChatConversation> selectByUserId(String userId) {
         if (!StringUtils.hasText(userId)) {

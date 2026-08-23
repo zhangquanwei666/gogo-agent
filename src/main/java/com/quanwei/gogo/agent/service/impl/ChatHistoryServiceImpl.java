@@ -1,16 +1,21 @@
 package com.quanwei.gogo.agent.service.impl;
 
 import com.quanwei.gogo.agent.bo.ChatHistorySaveBO;
+import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import com.quanwei.gogo.agent.common.MessageRoleEnum;
 import com.quanwei.gogo.agent.dao.ChatConversationDao;
 import com.quanwei.gogo.agent.dao.ChatMessageDao;
 import com.quanwei.gogo.agent.entity.ChatConversation;
 import com.quanwei.gogo.agent.entity.ChatMessage;
+import com.quanwei.gogo.agent.exception.BizException;
 import com.quanwei.gogo.agent.service.ChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -44,6 +49,24 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
         /* 用户消息落库 */
         insertMessage(conversationId, content);
 
+    }
+
+    @Override
+    public List<ChatMessage> listMessages(String conversationId, String userId) {
+
+        /* 判断会话是否存在 */
+        ChatConversation chatConversation = chatConversationDao.selectByConversationId(conversationId);
+        if (chatConversation == null) {
+            throw new BizException(ErrorCodeEnum.CONVERSATION_NOT_FOUND);
+        }
+
+        /* 越权校验 */
+        if (!chatConversation.getUserId().equals(userId)) {
+            throw new BizException(ErrorCodeEnum.CONVERSATION_FORBIDDEN);
+        }
+
+        /* 查该会话的全部消息 */
+        return chatMessageDao.selectByConversationId(conversationId);
     }
 
     /**

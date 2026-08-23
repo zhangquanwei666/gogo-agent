@@ -48,9 +48,6 @@ public class ChatMessageDao {
 
     /** 查某个会话的全部消息，按创建时间正序，也就是对话本身的顺序 */
     public List<ChatMessage> selectByConversationId(String conversationId) {
-        if (!StringUtils.hasText(conversationId)) {
-            return List.of();
-        }
         return chatMessageMapper.selectList(Wrappers.<ChatMessage>lambdaQuery()
                 .eq(ChatMessage::getConversationId, conversationId)
                 .orderByAsc(ChatMessage::getCreatedTime));

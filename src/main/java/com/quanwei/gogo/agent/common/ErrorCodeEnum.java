@@ -34,6 +34,9 @@ public enum ErrorCodeEnum {
 
     METHOD_NOT_ALLOWED(405, "请求方法不被支持"),
 
+    /* ---------- 403 无权限 ---------- */
+    CONVERSATION_FORBIDDEN(403, "无权访问该会话"),
+
     /* ---------- 404 资源不存在 ---------- */
     API_NOT_FOUND(404, "接口不存在"),
     USER_NOT_FOUND(404, "用户不存在"),
