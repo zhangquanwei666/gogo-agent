@@ -91,7 +91,7 @@ public class IntentRecognitionAgent extends AgentBase {
         }
 
         // L1,L2未命中，走L3兜底
-        return callLlmFallBack(msgs);
+        return callL3(msgs);
     }
 
     /** 被中断时的处理 */
@@ -106,9 +106,15 @@ public class IntentRecognitionAgent extends AgentBase {
     }
 
     /**
-     * L3：调模型做复杂意图和多意图识别
+     * L3：调模型做复杂意图和多意图识别。
+     *
+     * <p>公开出来是给 {@code AgentPipelineService} 用的：流水线自己按
+     * 「原始问题走快路径 → 未命中才改写 → 改写后再走一次快路径 → 还不行才 L3」的顺序驱动，
+     * 需要能单独触发 L3 而不重复跑一遍前面几级（重复跑 L2 会白花一次 embedding 调用）。
+     *
+     * <p>{@link #doCall(List)} 仍然是「快路径 + L3」的完整流程，单独用这个智能体时走那条。
      */
-    private Mono<Msg> callLlmFallBack(List<Msg> msgs) {
+    public Mono<Msg> callL3(List<Msg> msgs) {
         ArrayList<Msg> messages = new ArrayList<>();
         messages.add(Msg.builder()
                 .role(MsgRole.SYSTEM)
@@ -116,7 +122,9 @@ public class IntentRecognitionAgent extends AgentBase {
                 .content(TextBlock.builder().text(sysPrompt).build())
                 .build());
         if (msgs != null) {
-            messages.addAll(messages);
+            // 这里曾经写成 messages.addAll(messages) —— 自己加自己，
+            // 结果是系统提示词进去两遍、用户问题一条没进，模型在没有问题的情况下硬编一个意图
+            messages.addAll(msgs);
         }
 
         return Mono.fromCallable(() -> stableModel.stream(messages, null, null).collectList().block())

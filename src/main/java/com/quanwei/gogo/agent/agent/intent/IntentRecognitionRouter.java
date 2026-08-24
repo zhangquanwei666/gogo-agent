@@ -75,12 +75,16 @@ public class IntentRecognitionRouter {
 
         // L1
         IntentRuleMatcher.Outcome l1OutCome = ruleMatcher.evaluate(query);
-        //是否直接执行L3
         if (l1OutCome.verdict() == IntentRuleMatcher.Verdict.HIT) {
-            return Optional.empty();
+            log.info("[INTENT_RECOGNITION] L1 规则命中 {}", l1OutCome.result().getPrimaryIntent());
+            return Optional.of(l1OutCome.result());
         }
 
+        // AMBIGUOUS 是「拆不开」不是「没识别到」：L2 的向量检索同样只返回单一意图，
+        // 复合句给它也是白给，所以连 L2 一起跳过，直接交给能拆多意图的 L3
         if (l1OutCome.verdict() == IntentRuleMatcher.Verdict.AMBIGUOUS) {
+            log.info("[INTENT_RECOGNITION] L1 检出跨智能体多意图 {}，跳过 L2 直接进 L3",
+                    l1OutCome.ambiguousCategories());
             return Optional.empty();
         }
 

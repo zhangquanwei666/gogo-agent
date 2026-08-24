@@ -6,7 +6,8 @@
 生产环境单端口即可跑起来。
 
 > **当前状态：骨架完成，对话链路尚未接通。**
-> 账号体系和会话列表已打通，智能体代码已就位但缺编排器和对话接口，详见 [当前进度](#当前进度)。
+> 账号体系和会话列表已打通；问题改写和意图识别两个智能体的代码已就位，
+> 但缺编排器和对话接口，详见 [当前进度](#当前进度)。
 
 ## 技术栈
 
@@ -17,7 +18,8 @@
 | 持久层 | MyBatis-Plus 3.5.17 + MySQL | 雪花 ID、逻辑删除、字段自动填充 |
 | 鉴权 | Sa-Token 1.39.0 + Redis | random-128 token，会话存 Redis |
 | 智能体 | AgentScope Java 2.0.2 | 阿里开源多智能体框架 |
-| 模型 | OpenAI 兼容协议 → qwen-plus | 走兼容接口，换厂商只改 base-url |
+| 模型 | OpenAI 兼容协议，按档位配置 | fast / stable / strong / strong-thinking 四档，业务只声明档位 |
+| 向量化 | text-embedding-v4（自研客户端） | 意图识别 L2 用；AgentScope 2.0.2 没有 embedding 能力，只能自己调 |
 | 前端 | React 19 + TypeScript + Vite 8 | |
 
 选型上有两个坑已经在 `pom.xml` 里注释说明：
@@ -36,6 +38,8 @@
 | 前端登录页 / 注册页 / 首页 | ✅ 页面完成 |
 | 消息读写、点赞点踩 | ⚠️ service 层完成，未暴露接口 |
 | 问题改写智能体 | ⚠️ 代码完成，未接入调用链 |
+| 意图识别 L0/L1/L2（分流 + 规则 + 向量） | ✅ 代码完成，种子语料就绪 |
+| 意图识别 L3（大模型兜底） | ⚠️ 提示词就绪，模型输出还没解析成结构化结果 |
 | 智能体编排器 | ❌ 未实现 |
 | 对话接口（发送消息 / 流式回复） | ❌ 未实现 |
 | 机票 / 酒店 / 火车票 / 用车搜索 | ❌ 纯 UI，点击提示「功能还在开发中」 |
@@ -60,7 +64,9 @@ mysql -u <user> -p <database> < src/main/resources/db/DBSQL.sql
 ### 2. 配置连接信息
 
 改 `src/main/resources/application.yaml` 里的 `spring.datasource`、`spring.data.redis`
-和 `agentscope.openai`（见 [配置说明](#配置说明)）。
+和 `agent.model.*` 各档位的模型密钥（见 [配置说明](#配置说明)）。
+
+`agent.intent.l2.embedding.api-key` 可以先留空——L2 会静默禁用，意图识别退回 L1 + L3，不影响启动。
 
 ### 3. 启动后端
 
@@ -96,10 +102,17 @@ cd frontend && npm run build
 |---|---|
 | `spring.datasource` | MySQL 连接 |
 | `spring.data.redis` | Sa-Token 会话存储 |
-| `agentscope.openai.base-url` / `api-key` / `model-name` | 模型接入，OpenAI 兼容协议 |
+| `agent.model.fast` / `stable` / `strong` / `strong-thinking` | 模型分档，每档独立配 `api-key` / `base-url` / `model-name` / `stream` / `enable-thinking` |
 | `agent.prompt.location` | 提示词目录，`classpath:prompt/` 打进 jar |
 | `agent.prompt.cache` | 提示词缓存开关 |
+| `agent.intent.seed-location` | 意图种子语料，L2 建索引用 |
+| `agent.intent.l0.length-threshold` | 含连词且长度超它才判为复合问题，直接下沉 L3 |
+| `agent.intent.l2.threshold` / `margin` | L2 相似度阈值与 top1/top2 最小分差，两个都要看真实数据调 |
+| `agent.intent.l2.embedding.api-key` | 向量化密钥。**留空则整个 L2 静默禁用**，识别由 L1 和 L3 承担，服务照常启动 |
 | `sa-token.active-timeout` | token 有效期，默认 30 天 |
+
+模型分档的意思是：业务代码只声明「我要快模型」，具体挂哪个模型、开不开思考全在配置里，
+换模型不用重新编译。四档之间不共享不继承，可以分别挂在不同账号和接入地址上。
 
 两个开发期便利项，上线前记得处理：
 
@@ -140,12 +153,18 @@ cd frontend && npm run build
 ```
 src/main/java/com/quanwei/gogo/agent/
 ├── agent/                智能体
-│   ├── baseagent/        ChatAgent 接口 + QueryRewriteAgent
+│   ├── baseagent/        ChatAgent 接口 + QueryRewritingAgent + IntentRecognitionAgent
 │   ├── core/             AgentContext（贯穿链路的上下文）、AgentResult
-│   ├── llm/              LlmClient，对 AgentScope Model 的薄封装
+│   ├── intent/           意图识别
+│   │   ├── rule/         IntentRuleMatcher，L1 正则规则，三态裁决
+│   │   ├── vector/       IntentVectorStore（建索引 + 检索）+ IntentVectorMatcher（阈值裁决）
+│   │   ├── embedding/    EmbeddingClient，OpenAI 兼容的 /embeddings 调用
+│   │   ├── seed/         种子语料加载与校验
+│   │   └── ...           IntentRecognitionRouter（L0→L2 快路径）、IntentRecognitionResult
+│   ├── llm/              ModelProperties / ModelConfig，模型分档
 │   ├── prompt/           PromptLoader，提示词从文件加载
 │   ├── rewrite/          改写产出
-│   └── enums/            AgentNameEnum
+│   └── enums/            AgentNameEnum、IntentCategory、IntentLevelEnum
 ├── controller/           只做参数收敛和 DTO 转换
 ├── service/              业务逻辑，入参出参都是 BO
 ├── dao/                  数据访问收口，service 不直接碰 mapper
@@ -160,6 +179,7 @@ src/main/java/com/quanwei/gogo/agent/
 src/main/resources/
 ├── application.yaml
 ├── db/DBSQL.sql          建表脚本
+├── intent_seed.yml       意图种子语料，L2 启动时向量化建索引
 ├── mapper/               Mapper XML
 └── prompt/               提示词，纯文本，改动不需要重新编译
 
@@ -185,7 +205,47 @@ frontend/src/
    由编排器决定是降级继续还是中断。单个智能体挂掉不能让整轮对话失败。
 2. **`supports()` 返回 false 时直接跳过**，不产生任何 LLM 调用——这是控制延迟和成本的主要手段。
 
-### 已实现：QueryRewriteAgent（问题改写）
+### 已实现：意图识别（分级分类器）
+
+判断用户这句话属于哪个业务意图、该交给哪个子智能体。四级串联，**每一级都可以主动弃权**：
+
+```
+L0  连词 + 长度判定     不产出意图，只决定要不要跳过 L1/L2 直接下沉 L3
+L1  正则规则匹配        ~1ms，无外部调用
+L2  向量相似度          ~50ms，含一次 embedding 调用
+L3  大模型              ~800ms，负责复杂意图、多意图，同时是整条链路的兜底
+```
+
+分级的价值一半在提速，另一半在**弃权**：L1 检出一句话跨了两个子智能体、L2 发现 top1 和 top2
+咬得太紧，都返回「我判不了」交给下一级，而不是硬给一个五五开的结论。
+
+L1 的裁决是三态而不是「命中/未命中」：
+
+| 裁决 | 含义 | 下一步 |
+|---|---|---|
+| `HIT` | 规则命中 | 直接采信，不再往下 |
+| `MISS` | 规则没覆盖到 | 继续走 L2，L2 很可能能识别 |
+| `AMBIGUOUS` | 一句话跨了多个子智能体 | **连 L2 一起跳过**，直接进 L3 |
+
+多出来的 `AMBIGUOUS` 是为了省掉一次没有意义的 embedding 调用——向量检索同样只返回单一意图，
+复合句给它也是白给。
+
+意图类别定义在 `IntentCategory`，16 类，每类绑定一个目标子智能体的 **Spring bean 名**，
+路由直接拿它 `getBean`。这份映射必须和 `prompt/intent-recognition-agent-system.md` 里的表、
+`intent_seed.yml` 的 intent 字段三处一致——对不上的种子在启动时报错，
+对不上的模型输出会被静默收敛成 `unknown`。
+
+三层的产出是**同一个 `IntentRecognitionResult`**，`toJsonMap()` 出来的 JSON 结构与 L3 提示词
+约定的完全一致（`intents[] / primary_intent / multi_intent / overall_reason`）。
+规则命中、向量命中、模型兜底三条路径下游拿到同一个形状，主智能体只写一套解析逻辑。
+
+`intent_seed.yml` 的样本刻意**不含 L1 触发词**——能被 L1 正则命中的说法永远走不到 L2，
+放进语料纯属冗余。写样本时的自检：丢给 `IntentRuleMatcher`，如果 L1 就能命中，这条对 L2 没价值。
+
+L2 整级可降级：没配 `api-key`、建索引失败、运行时调用异常，一律跳过走 L3。
+向量检索是加速手段不是必需品，配不全就退回 L3，不该让服务起不来。
+
+### 已实现：QueryRewritingAgent（问题改写）
 
 把带指代、省略的追问补全成可以脱离上下文独立理解的问题：
 「那家酒店多少钱」→「上海浦东丽思卡尔顿酒店多少钱」。
@@ -197,7 +257,7 @@ supports()  历史非空 + 正则命中指代特征词，两条都满足才调 L
     ↓
 拼历史      最近 6 条消息，每条截断 200 字
     ↓
-渲染提示词   prompt/query-rewrite-system.txt + query-rewrite-user.txt
+渲染提示词   prompt/query-rewriting-agent-system.md + -user.md
     ↓
 调用 LLM    temperature=0，超时 8s
     ↓
@@ -215,14 +275,20 @@ supports()  历史非空 + 正则命中指代特征词，两条都满足才调 L
 按优先级排列：
 
 1. **轮换 `application.yaml` 里的数据库 / Redis 密码和模型 API Key**，改为环境变量注入
-2. **`LlmClient` 支持按 agent 指定模型** —— 改写这类任务应该走小模型，
-   当前所有 agent 共用 `qwen-plus`，卡在首字延迟的关键路径上
-3. **改写输出改为 JSON 结构化**，替掉 `parseOutput` 里的启发式防御
-4. **提示词注入当前日期**，把「下周一」归一化成绝对日期（商旅是强时间相关场景）
-5. **实现 `AgentOrchestrator`**，按顺序驱动 `List<ChatAgent<?>>`，
+2. **解析 L3 输出**。`IntentRecognitionAgent` 目前把模型返回的文本原样透传，
+   还没转成 `IntentRecognitionResult`——L3 这一级等于只跑通了调用，没跑通结果
+3. **接通意图识别的三级路由**。`IntentRecognitionRouter` 里 L1 命中的分支目前返回空，
+   `Outcome.result()` 被丢掉了，L1 白算
+4. **改写输出改为 JSON 结构化**，替掉 `parseOutput` 里的启发式防御
+5. **提示词注入当前日期**，把「下周一」归一化成绝对日期（商旅是强时间相关场景）。
+   意图识别的系统提示词现在也没有日期变量
+6. **实现 `AgentOrchestrator`**，按顺序驱动 `List<ChatAgent<?>>`，
    把执行链路写进 `chat_message.extra` 供排查
-6. **新增对话接口** `POST /api/v1/chat/send`，`agentscope.openai.stream` 已配好，建议直接上 SSE
-7. **补齐消息相关接口**（列表、反馈、会话改名/删除）—— service 层已完成，只差 controller
-8. **补测试**。当前无 `src/test` 目录，改写链路尤其需要一个多轮对话评测集
-9. 收紧 CORS。`config/CorsConfig` 当前是 `allowedOriginPattern("*")` + `allowCredentials(true)`，
-   生产应换成明确的域名白名单
+7. **新增对话接口** `POST /api/v1/chat/send`，模型分档里 `stream` 已配好，建议直接上 SSE
+8. **补齐消息相关接口**（列表、反馈、会话改名/删除）—— service 层已完成，只差 controller
+9. **补测试**。当前无 `src/test` 目录，至少要两个：
+   改写链路的多轮对话评测集；意图种子的冗余护栏（断言每条 sample 都不会被 L1 抢先命中）
+10. **清理 `IntentSeed.keywords`**。`L1KeywordClassifier` 删除后没有任何代码读取它，
+    `intent_seed.yml` 里保留的 keywords 块现在是死数据，容易让人误以为改了会生效
+11. 收紧 CORS。`config/CorsConfig` 当前是 `allowedOriginPattern("*")` + `allowCredentials(true)`，
+    生产应换成明确的域名白名单
