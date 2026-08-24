@@ -6,6 +6,7 @@ import com.quanwei.gogo.agent.agent.baseagent.QueryRewritingAgent;
 import com.quanwei.gogo.agent.agent.core.AgentContext;
 import com.quanwei.gogo.agent.agent.core.AgentRegistry;
 import com.quanwei.gogo.agent.agent.core.AgentResult;
+import com.quanwei.gogo.agent.agent.core.MasterAgentContextHolder;
 import com.quanwei.gogo.agent.agent.enums.AgentNameEnum;
 import com.quanwei.gogo.agent.agent.enums.IntentCategory;
 import com.quanwei.gogo.agent.agent.enums.IntentLevelEnum;
@@ -257,11 +258,14 @@ public class AgentPipelineService {
     }
 
     /**
-     * 调度给 MasterAgent —— <b>预留</b>。
+     * 调度给 MasterAgent。
      *
-     * <p>MasterAgent 还没实现。这里按 bean 名查，容器里没有就把识别结果原样返回，
-     * 流水线到意图识别为止；等 MasterAgent 以 {@code @Component("masterAgent")} 落地，
-     * 这条路径自动接上，本方法不用改。
+     * <p>按 bean 名查，容器里没有就把识别结果原样返回，流水线到意图识别为止 ——
+     * 这条降级留着，让 MasterAgent 可以被单独摘掉而不影响前面几步的调试。
+     *
+     * <p>MasterAgent 由 {@code MasterAgentConfig} 的 {@code @Bean} 工厂方法产出，
+     * 不是 {@code @Component}：它的构造器要一个非 bean 的 {@link AgentContext}，
+     * 只能靠下面那段 ThreadLocal 投影递进去。
      *
      * <p>入参形态也一并定死了：改写结果和意图 JSON 各作为一条 SYSTEM 消息垫在原始对话之前。
      * 意图给的是 {@code toJsonMap()} 的产出，和 L3 提示词约定的 schema 一致 ——
@@ -274,7 +278,19 @@ public class AgentPipelineService {
             return Mono.just(result);
         }
 
-        AgentBase masterAgent = agentRegistry.getAgent(MASTER_AGENT, AgentBase.class);
+        // 上下文投影：MasterAgent 的构造器要 AgentContext，但它不是 bean，递不进 getBean。
+        // set → getBean → clear 三步必须同步、同线程、clear 放 finally，
+        // 三条约束的来由见 MasterAgentContextHolder 的类注释。
+        // 注意 clear 必须在 getBean 之后立刻做，而不是等 call() 的 Mono 完成 ——
+        // 那个 Mono 由 Reactor 调度，回调时早就换线程了，届时清的是别人的槽位。
+        AgentBase masterAgent;
+        MasterAgentContextHolder.set(context);
+        try {
+            masterAgent = agentRegistry.getAgent(MASTER_AGENT, AgentBase.class);
+        } finally {
+            MasterAgentContextHolder.clear();
+        }
+
         return masterAgent.call(buildMasterInput(context, result))
                 .map(masterReply -> {
                     if (isInterrupted(masterReply)) {

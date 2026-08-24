@@ -21,6 +21,15 @@ npm run dev
 后端接口通过 `vite.config.ts` 里的 proxy 转发到 `http://127.0.0.1:18080`，
 所以开发阶段不依赖后端的 CORS 配置。启动前先把 Spring Boot 应用跑起来。
 
+> **`npm install` 报 `Exit handler never called!` 时**，别去查这个报错本身——它是 npm 自己的
+> bug，大量请求失败时会盖掉真实原因。去看它提示的日志文件，多半是一片 `ENOTFOUND`。
+>
+> 根因是 `package-lock.json` 里的 `resolved` 地址不可达。npm 下载 tarball 时**优先读
+> lockfile 的 `resolved`，不看 `registry` 配置**，所以改 registry 没用。本项目的 lockfile
+> 曾锁在内网私服 `nexus.91xunhui.cn` 上，离开内网就全量失败，现已改写为公共镜像
+> `registry.npmmirror.com`。若要换源，替换 lockfile 里的地址前缀即可，
+> `integrity` 哈希不用动（公共镜像与私服代理的 tarball 都源自 npmjs，字节一致）。
+
 ## 构建
 
 ```bash

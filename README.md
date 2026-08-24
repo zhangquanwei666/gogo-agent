@@ -5,9 +5,10 @@
 前后端一体的单体工程：Spring Boot 提供接口，同时把 `frontend/dist` 作为静态资源托管，
 生产环境单端口即可跑起来。
 
-> **当前状态：骨架完成，对话链路尚未接通。**
-> 账号体系和会话列表已打通；问题改写和意图识别两个智能体的代码已就位，
-> 但缺编排器和对话接口，详见 [当前进度](#当前进度)。
+> **当前状态：智能体流水线已跑通，对话接口尚未开放。**
+> 账号体系和会话列表已打通；问题改写 + 意图识别的完整链路由
+> `AgentPipelineService` 编排，产出 `PipelineResult`。
+> 还缺 MasterAgent 和对外的对话接口，详见 [当前进度](#当前进度)。
 
 ## 技术栈
 
@@ -20,6 +21,8 @@
 | 智能体 | AgentScope Java 2.0.2 | 阿里开源多智能体框架 |
 | 模型 | OpenAI 兼容协议，按档位配置 | fast / stable / strong / strong-thinking 四档，业务只声明档位 |
 | 向量化 | text-embedding-v4（自研客户端） | 意图识别 L2 用；AgentScope 2.0.2 没有 embedding 能力，只能自己调 |
+| 异步 | Reactor `Mono` | 流水线全链路非阻塞，同步 HTTP 调用挪到 `boundedElastic` |
+| JSON | fastjson2 | 解析模型输出的结构化结果，跟 Jackson 各管一摊互不干扰 |
 | 前端 | React 19 + TypeScript + Vite 8 | |
 
 选型上有两个坑已经在 `pom.xml` 里注释说明：
@@ -37,10 +40,11 @@
 | 会话列表查询 | ✅ 已打通 |
 | 前端登录页 / 注册页 / 首页 | ✅ 页面完成 |
 | 消息读写、点赞点踩 | ⚠️ service 层完成，未暴露接口 |
-| 问题改写智能体 | ⚠️ 代码完成，未接入调用链 |
+| 问题改写智能体 | ✅ 已接入流水线，输出 JSON 结构化解析 |
 | 意图识别 L0/L1/L2（分流 + 规则 + 向量） | ✅ 代码完成，种子语料就绪 |
-| 意图识别 L3（大模型兜底） | ⚠️ 提示词就绪，模型输出还没解析成结构化结果 |
-| 智能体编排器 | ❌ 未实现 |
+| 意图识别 L3（大模型兜底） | ✅ `IntentResultParser` 已把模型输出转成结构化结果 |
+| 智能体流水线编排 | ✅ `AgentPipelineService`，快路径优先 + 全链路降级 |
+| MasterAgent（意图落地执行） | ❌ 未实现，流水线已留好调度位 |
 | 对话接口（发送消息 / 流式回复） | ❌ 未实现 |
 | 机票 / 酒店 / 火车票 / 用车搜索 | ❌ 纯 UI，点击提示「功能还在开发中」 |
 
@@ -55,7 +59,8 @@
 
 ### 1. 初始化数据库
 
-建库后执行建表脚本，三张表：`user_account`、`chat_conversation`、`chat_message`。
+建库后执行建表脚本，四张表：`user_account`、`chat_conversation`、`chat_message`，
+以及 `agentscope_session`（AgentScope 的会话状态持久化，由 `AgentscopeSessionService` 读写）。
 
 ```bash
 mysql -u <user> -p <database> < src/main/resources/db/DBSQL.sql
@@ -114,6 +119,10 @@ cd frontend && npm run build
 模型分档的意思是：业务代码只声明「我要快模型」，具体挂哪个模型、开不开思考全在配置里，
 换模型不用重新编译。四档之间不共享不继承，可以分别挂在不同账号和接入地址上。
 
+`agent.intent.*` 里除 `seed-location` 外的键当前都**没有写进 `application.yaml`**，
+走的是 `IntentProperties` 的默认值（L0 阈值 10 字、L1 置信度 0.90、L2 阈值 0.85 / margin 0.05、
+embedding 维度 1024）。要调只需在 yaml 里补对应的键，不用改代码。
+
 两个开发期便利项，上线前记得处理：
 
 - **调提示词**：把 `agent.prompt.location` 改成 `file:./prompt/`、`cache` 设为 `false`，
@@ -154,19 +163,25 @@ cd frontend && npm run build
 src/main/java/com/quanwei/gogo/agent/
 ├── agent/                智能体
 │   ├── baseagent/        ChatAgent 接口 + QueryRewritingAgent + IntentRecognitionAgent
-│   ├── core/             AgentContext（贯穿链路的上下文）、AgentResult
+│   ├── pipeline/         AgentPipelineService（流水线编排）+ PipelineResult
+│   ├── core/             AgentContext（贯穿链路的上下文）、AgentResult、
+│   │                     AgentRegistry（按 bean 名取智能体）、LlmJsonUtils
 │   ├── intent/           意图识别
 │   │   ├── rule/         IntentRuleMatcher，L1 正则规则，三态裁决
 │   │   ├── vector/       IntentVectorStore（建索引 + 检索）+ IntentVectorMatcher（阈值裁决）
 │   │   ├── embedding/    EmbeddingClient，OpenAI 兼容的 /embeddings 调用
 │   │   ├── seed/         种子语料加载与校验
-│   │   └── ...           IntentRecognitionRouter（L0→L2 快路径）、IntentRecognitionResult
+│   │   └── ...           IntentRecognitionRouter（L0→L2 快路径）、IntentRecognitionResult、
+│   │                     IntentResultParser（L3 输出转结构化）、IntentProperties
 │   ├── llm/              ModelProperties / ModelConfig，模型分档
-│   ├── prompt/           PromptLoader，提示词从文件加载
-│   ├── rewrite/          改写产出
+│   ├── prompt/           PromptLoader，提示词从文件加载 + 注入时间变量
+│   ├── rewrite/          QueryRewriteParser（JSON 解析）+ QueryRewriteResult
 │   └── enums/            AgentNameEnum、IntentCategory、IntentLevelEnum
 ├── controller/           只做参数收敛和 DTO 转换
+│                         Login / Register / UserAccount / Chat 四个
 ├── service/              业务逻辑，入参出参都是 BO
+│                         含 ChatHistoryService（跨智能体的历史读取）、
+│                         AgentscopeSessionService（AgentScope 状态持久化）
 ├── dao/                  数据访问收口，service 不直接碰 mapper
 ├── mapper/               MyBatis-Plus Mapper 接口
 ├── entity/               数据库实体，不越过 dao 边界
@@ -204,6 +219,45 @@ frontend/src/
 1. **智能体不向外抛异常**，失败也要返回 `AgentResult.fail(...)`，
    由编排器决定是降级继续还是中断。单个智能体挂掉不能让整轮对话失败。
 2. **`supports()` 返回 false 时直接跳过**，不产生任何 LLM 调用——这是控制延迟和成本的主要手段。
+
+### 已实现：AgentPipelineService（流水线编排）
+
+**核心设计：把改写放在意图识别之后，而不是之前。**
+
+```
+① 原始问题走 L0→L2 快路径（不碰 L3）
+     命中 ──→ 直接调度，改写和 L3 两次模型调用都省了
+     未命中 ↓
+② 调改写模型补全指代、省略（无历史时跳过——没有上文就没有指代可消解）
+③ 拿改写后的问题走完整识别（内部再跑一次 L1/L2，不行才 L3）
+④ 调度给 MasterAgent（预留，bean 不存在时到此为止）
+```
+
+直觉上「先改写再识别」更顺，但那样每一句话都要先付一次改写的模型调用。而「我的报销进度到哪了」
+这类高频、表达清晰的问题，L1 一条正则 1ms 就判完了，根本不需要改写。顺序反过来之后，
+这部分流量的模型调用次数**从 2 次降到 0 次**。
+
+代价是带指代的追问（「那个多少钱」）会先白跑一次快路径，但快路径的成本是 L1 正则加一次 embedding，
+和一次大模型调用比可以忽略，这笔账划算。
+
+第 ③ 步还有一处剪枝：改写**没有真的改动文本**时直接走 `callL3`，跳过重复的 L1/L2——
+同一段文本在第 ① 步已经跑过快路径且未命中，再跑一遍结果必然一样，纯属白花一次 embedding。
+
+其余几条约定：
+
+- **全链路非阻塞**。返回 `Mono<PipelineResult>`，快路径里 embedding 是同步 HTTP，
+  用 `boundedElastic` 挪出去，不占 Netty 事件循环线程。
+- **全流程不抛异常**。改写失败退回原文继续走，识别失败返回 `unknown` 交给 MasterAgent 追问，
+  最外层还有 `onErrorResume` 兜底。
+- **中断单独建模**。`PipelineResult.interrupted` 和识别失败是两回事——用户主动中断不该被当成
+  识别失败去追问，也不该计入统计。AgentScope 当前版本的优雅中断不一定带 `INTERRUPTED` 标记，
+  所以还兜底认了那句固定的英文恢复文本。
+- **`rewriteTriggered` / `llmCalls` 是设计自证**。「快路径省下了多少次模型调用」这个比例，
+  就是分级设计到底值不值的直接证据。
+
+`AgentRegistry` 按 **bean 名**取智能体，注意和 `AgentNameEnum` 区分：后者是落
+`chat_message.agent_name` 的人类可读名（PascalCase），前者是 `@Component("...")` 的容器标识
+（camelCase），拿错了 `getBean` 直接抛。
 
 ### 已实现：意图识别（分级分类器）
 
@@ -253,20 +307,27 @@ L2 整级可降级：没配 `api-key`、建索引失败、运行时调用异常�
 流程：
 
 ```
-supports()  历史非空 + 正则命中指代特征词，两条都满足才调 LLM
+触发判定    由流水线控制：快路径未命中 + 历史非空，两条都满足才调 LLM
     ↓
-拼历史      最近 6 条消息，每条截断 200 字
+拼历史      最近 10 条消息，每条截断 200 字
+            上下文优先用 AgentContext.history，为空再按 conversationId 查 chat_message
     ↓
 渲染提示词   prompt/query-rewriting-agent-system.md + -user.md
+            PromptLoader 注入 {{current_date}} / {{current_weekday}}，
+            让「下周一」能归一化成绝对日期
     ↓
-调用 LLM    temperature=0，超时 8s
+调用 LLM    超时 8s
     ↓
-防御式解析   NO_REWRITE 标记 / 剥引号 / 过长判定为模型扩写，都退回原文
+JSON 解析    QueryRewriteParser 取 rewritten_question / step_back_question
+            / related / reason；解析失败或改写后长度超原文 N 倍，都退回原文
     ↓
 写回 context.rewrittenQuery，下游统一读 effectiveQuery()
 ```
 
 改写失败一律降级用原文，不中断对话。下游不需要关心改写有没有真的发生。
+
+「长度超原文 N 倍就退回」这条防御是有意保留的：JSON 化解决了格式问题，但解决不了模型
+自作主张扩写——它可能返回一个格式完全合法、内容却塞进大量臆测细节的 `rewritten_question`。
 
 已知待改进项见 [待办](#待办)。
 
@@ -275,20 +336,25 @@ supports()  历史非空 + 正则命中指代特征词，两条都满足才调 L
 按优先级排列：
 
 1. **轮换 `application.yaml` 里的数据库 / Redis 密码和模型 API Key**，改为环境变量注入
-2. **解析 L3 输出**。`IntentRecognitionAgent` 目前把模型返回的文本原样透传，
-   还没转成 `IntentRecognitionResult`——L3 这一级等于只跑通了调用，没跑通结果
-3. **接通意图识别的三级路由**。`IntentRecognitionRouter` 里 L1 命中的分支目前返回空，
-   `Outcome.result()` 被丢掉了，L1 白算
-4. **改写输出改为 JSON 结构化**，替掉 `parseOutput` 里的启发式防御
-5. **提示词注入当前日期**，把「下周一」归一化成绝对日期（商旅是强时间相关场景）。
-   意图识别的系统提示词现在也没有日期变量
-6. **实现 `AgentOrchestrator`**，按顺序驱动 `List<ChatAgent<?>>`，
-   把执行链路写进 `chat_message.extra` 供排查
-7. **新增对话接口** `POST /api/v1/chat/send`，模型分档里 `stream` 已配好，建议直接上 SSE
-8. **补齐消息相关接口**（列表、反馈、会话改名/删除）—— service 层已完成，只差 controller
-9. **补测试**。当前无 `src/test` 目录，至少要两个：
-   改写链路的多轮对话评测集；意图种子的冗余护栏（断言每条 sample 都不会被 L1 抢先命中）
-10. **清理 `IntentSeed.keywords`**。`L1KeywordClassifier` 删除后没有任何代码读取它，
-    `intent_seed.yml` 里保留的 keywords 块现在是死数据，容易让人误以为改了会生效
-11. 收紧 CORS。`config/CorsConfig` 当前是 `allowedOriginPattern("*")` + `allowCredentials(true)`，
-    生产应换成明确的域名白名单
+2. **实现 `MasterAgent`**，以 `@Component("masterAgent")` 落地即可自动接上流水线的调度位，
+   `AgentPipelineService.dispatchToMaster` 不用改。入参形态已定死：
+   改写结果和意图 JSON 各作为一条 SYSTEM 消息垫在原始对话之前
+3. **新增对话接口** `POST /api/v1/chat/send`，模型分档里 `stream` 已配好，建议直接上 SSE。
+   同时把 `context.agentTrace` 写进 `chat_message.extra` 供排查
+4. **补齐消息相关接口**（列表、反馈、会话改名/删除）—— service 层已完成，只差 controller
+5. **给意图识别的系统提示词加日期变量**。`PromptLoader` 已支持注入
+   `{{current_date}}` / `{{current_weekday}}` / `{{current_time}}`，改写提示词已经在用，
+   但 `intent-recognition-agent-system.md` 里一个占位符都没有
+6. **补测试**。当前无 `src/test` 目录，至少要三个：
+   改写链路的多轮对话评测集；意图种子的冗余护栏（断言每条 sample 都不会被 L1 抢先命中）；
+   流水线的快路径命中率回归（`rewriteTriggered` / `llmCalls` 就是为此埋的）
+7. **清理 `IntentSeed.keywords`**。`IntentRuleMatcher` 不读它，`L1KeywordClassifier` 删除后
+   没有任何匹配逻辑消费这个字段——但 `IntentSeedLoader` 仍在解析并校验它
+   （「keywords 和 samples 不能同时为空」），所以它是**被校验但不生效**的死数据，
+   比纯粹没人读更容易误导：改了它启动不报错，但不会有任何效果
+8. 收紧 CORS。`config/CorsConfig` 当前是 `allowedOriginPattern("*")` + `allowCredentials(true)`，
+   生产应换成明确的域名白名单
+9. **`frontend/package-lock.json` 的 registry 指向问题**。原先锁的是内网私服
+   `nexus.91xunhui.cn`，离开内网时 `npm install` 会全量 ENOTFOUND，且 npm 会报一个
+   与真实原因无关的 `Exit handler never called!`。现已改写为公共镜像，
+   若要回内网构建需连带考虑这一处
