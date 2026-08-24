@@ -64,6 +64,40 @@ agent:
     location: classpath:prompt/
     cache: true
 
+  # 意图识别的分级阈值。这些值必须上线后看真实数据调，所以全部外置。
+  # 关注 chat_message.extra 里的 level 分布：L1/L2 占比越高说明规则和样本覆盖越好；
+  # L3 一直居高不下，就该回头补 intent_seed.yml 的关键词或样本了。
+  intent:
+    seed-location: classpath:intent_seed.yml
+
+    # L0 前置分流：含连词且长度超阈值 -> 判为复合问题，跳过 L1/L2 直接走 L3
+    l0:
+      enabled: true
+      # 只看连词会误伤「北京和上海的机票」这类短句，加长度条件挡掉大部分误伤
+      length-threshold: 10
+
+    # L1 关键词分类器，约 1ms，无外部调用
+    l1:
+      enabled: true
+      base-confidence: 0.90
+
+    # L2 向量分类器，约 50ms，启动时把 intent_seed.yml 的样本建成内存索引
+    l2:
+      enabled: true
+      # top1 相似度低于它就放弃，交给 L3
+      threshold: 0.85
+      # top2 属于别的意图且分差小于它，说明语义上分不开，放弃而不是硬选
+      margin: 0.05
+      embedding:
+        # TODO 填真实密钥。留空则 L2 整级禁用，意图识别由 L1 和 L3 承担，服务照常启动
+        api-key:
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+        model-name: text-embedding-v4
+        dimensions: 1024
+        timeout-seconds: 10
+        # 百炼单次最多 25 条
+        batch-size: 20
+
   # 模型分档配置。业务代码只声明档位（ModelTierEnum），模型名和开关全在这里，
   # 换模型、开关思考只改这里，不用重新编译。
   #

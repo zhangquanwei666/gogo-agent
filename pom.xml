@@ -102,6 +102,12 @@
             <version>2.21.6</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>2.0.60</version>
+        </dependency>
+
         <!--AgentScope 智能体框架。选 openai starter 而不是 dashscope，
             是因为通义/DeepSeek/豆包/Kimi 都提供 OpenAI 兼容接口，换模型只改 base-url-->
         <dependency>
