@@ -10,6 +10,7 @@ import io.agentscope.core.tool.Toolkit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
@@ -38,7 +39,7 @@ import org.springframework.util.StringUtils;
  * {@link #buildToolkit()}。
  */
 @Slf4j
-@Configuration
+@Configuration("masterAgentConfiguration")
 public class MasterAgent {
 
     /** 提示词文件名，对应 resources/prompt/ 下的文件，要带扩展名 */
@@ -49,7 +50,10 @@ public class MasterAgent {
      * 一轮 = 一次模型调用 + 一次工具执行。给 10 是留给「路由子智能体 → 拿结果 → 再路由」
      * 这类多步编排的余量；到顶了框架会停下来把当前结果返回，不会无限转下去。
      */
-    private static final int MAX_ITERS = 10;
+    private static final int MAX_ITERATIONS = 10;
+
+    /** 主 Agent 工具执行超时（分钟） */
+    private static final int TOOL_TIMEOUT_MINUTES = 15;
 
     /**
      * 强模型。
@@ -62,6 +66,13 @@ public class MasterAgent {
     @Autowired
     @Qualifier("strongModel")
     private Model strongModel;
+
+    @Autowired
+    @Qualifier("stableModel")
+    private Model stableModel;
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     @Autowired
     private PromptLoader promptLoader;
@@ -98,26 +109,19 @@ public class MasterAgent {
         // 注：当前 master-agent-system.md 里没有 {{current_date}} 占位符，所以这一步暂时不注入任何东西
         String sysPrompt = promptLoader.loadStatic(SYSTEM_PROMPT_NAME);
 
-        ReActAgent.Builder builder = ReActAgent.builder()
+        ReActAgent agent  = ReActAgent.builder()
                 .name(AgentNameEnum.MASTER.getCode())
                 .description(AgentNameEnum.MASTER.getDesc())
                 .sysPrompt(sysPrompt)
                 .model(strongModel)
                 .toolkit(buildToolkit())
-                .maxIters(MAX_ITERS);
-
-        // 用会话 ID 作为智能体的默认 session，让同一个会话的多轮对话共用一份短时记忆。
-        // 注意：现在还没给 builder 配 stateStore，记忆只存在进程内，而本 bean 又是每轮新建的，
-        // 所以这行目前不产生实际效果 —— 等 agentscope_session 那张表接成 AgentStateStore
-        // 之后它才会真正生效。先设上，到时候不用回来改这里
-        if (StringUtils.hasText(context.getConversationId())) {
-            builder.defaultSessionId(context.getConversationId());
-        }
+                .maxIters(MAX_ITERATIONS)
+                .build();
 
         log.info("[MASTER] 构造主智能体，traceId={} conversationId={} 工具数={}",
                 context.getTraceId(), context.getConversationId(), 0);
 
-        return builder.build();
+        return agent;
     }
 
     /**
