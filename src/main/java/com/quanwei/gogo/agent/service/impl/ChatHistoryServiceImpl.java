@@ -1,6 +1,5 @@
 package com.quanwei.gogo.agent.service.impl;
 
-import com.quanwei.gogo.agent.bo.ChatHistorySaveBO;
 import com.quanwei.gogo.agent.common.ErrorCodeEnum;
 import com.quanwei.gogo.agent.common.MessageRoleEnum;
 import com.quanwei.gogo.agent.dao.ChatConversationDao;
@@ -35,13 +34,10 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void saveUserMessage(ChatHistorySaveBO chatHistorySaveBO) {
-        String conversationId = chatHistorySaveBO.getConversationId();
-        String userId = chatHistorySaveBO.getUserId();
-        String content = chatHistorySaveBO.getContent();
+    public void saveUserMessage(String conversationId, String userId, String content) {
 
         /* 创建会话*/
-        ensureConversation(chatHistorySaveBO.getConversationId(), userId);
+        ensureConversation(conversationId, userId);
 
         /* 更新标题 */
         updateConversationTittle(conversationId,userId,content);
