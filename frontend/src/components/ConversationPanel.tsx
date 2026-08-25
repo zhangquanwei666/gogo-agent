@@ -3,7 +3,13 @@ import type { ChatConversation } from '../types/chat'
 interface Props {
   conversations: ChatConversation[]
   loading: boolean
+  /** 当前正在看的会话，用来高亮 */
+  activeId: string
+  /** 正在拉历史消息的那条；不为 null 时整列禁用，挡住连点 */
+  loadingId: string | null
   onSelect: (conversation: ChatConversation) => void
+  /** 开一条新会话 */
+  onNew: () => void
 }
 
 /** 把后端返回的 LocalDateTime 字符串显示成「今天 14:30」这种相对时间 */
@@ -37,13 +43,31 @@ function formatTime(value: string): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
 }
 
-/** 侧边的历史会话列表，数据来自 POST /api/v1/chat/conversation/list */
-export default function ConversationPanel({ conversations, loading, onSelect }: Props) {
+/**
+ * 侧边的历史会话列表，数据来自 POST /api/v1/chat/conversation/list。
+ *
+ * <p>只负责渲染和把点击往上抛，拉历史消息、切当前会话都在 HomePage —— 和 ChatPanel 一样的分工。
+ */
+export default function ConversationPanel({
+  conversations,
+  loading,
+  activeId,
+  loadingId,
+  onSelect,
+  onNew,
+}: Props) {
+  const busy = loadingId !== null
+
   return (
     <aside className="side-panel">
       <div className="title">
         <h3>我的会话</h3>
-        {!loading && <span className="count">共 {conversations.length} 条</span>}
+        <div className="title-right">
+          {!loading && <span className="count">共 {conversations.length} 条</span>}
+          <button type="button" className="conv-new" disabled={busy} onClick={onNew}>
+            + 新会话
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -60,11 +84,15 @@ export default function ConversationPanel({ conversations, loading, onSelect }: 
           {conversations.map((c) => (
             <button
               key={c.conversationId}
-              className="conv-item"
+              type="button"
+              className={`conv-item${c.conversationId === activeId ? ' active' : ''}`}
+              disabled={busy}
               onClick={() => onSelect(c)}
             >
               <div className="t">{c.title}</div>
-              <div className="d">{formatTime(c.updatedTime)}</div>
+              <div className="d">
+                {c.conversationId === loadingId ? '加载中…' : formatTime(c.updatedTime)}
+              </div>
             </button>
           ))}
         </div>

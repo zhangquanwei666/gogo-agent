@@ -6,10 +6,10 @@ import ConversationPanel from '../components/ConversationPanel'
 import ChatPanel from '../components/ChatPanel'
 import { useToast } from '../components/useToast'
 import { getCurrentUser, logout as logoutApi } from '../api/user'
-import { listConversation, sendMessage } from '../api/chat'
+import { listConversation, listMessages, sendMessage } from '../api/chat'
 import { ApiError, clearToken } from '../api/request'
 import type { UserCurrentResp } from '../types/user'
-import type { ChatBubble, ChatConversation } from '../types/chat'
+import type { ChatBubble, ChatConversation, ChatMessageItem } from '../types/chat'
 import '../styles/home.css'
 
 /** 快捷提问，点了填进输入框 */
@@ -35,6 +35,22 @@ function nextBubbleId(): string {
   return `b${bubbleSeq}`
 }
 
+/**
+ * 后端的历史消息转成界面气泡。
+ *
+ * <p>role 只认 user，其余（agent / system）一律画在智能体那一侧：界面只有左右两栏，
+ * system 目前也没往库里写，多开一个分支只是多一处以后没人记得维护的代码。
+ */
+function toBubbles(items: ChatMessageItem[]): ChatBubble[] {
+  return items.map((m) => ({
+    id: nextBubbleId(),
+    role: m.role === 'user' ? 'user' : 'agent',
+    content: m.content,
+    messageId: m.messageId,
+    intentSource: m.intentSource,
+  }))
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserCurrentResp | null>(null)
@@ -43,8 +59,13 @@ export default function HomePage() {
   const [ask, setAsk] = useState('')
   const [messages, setMessages] = useState<ChatBubble[]>([])
   const [sending, setSending] = useState(false)
-  /* 会话 ID 进页面就定下来，整轮对话共用一个；刷新页面等于开新会话 */
-  const [sessionId] = useState(newSessionId)
+  /*
+   * 当前会话 ID。进页面先开一条新的；点侧边栏的历史会话会切到那一条，
+   * 之后发出去的消息就都记在切过去的会话名下。刷新页面同样等于开新会话。
+   */
+  const [sessionId, setSessionId] = useState(newSessionId)
+  /* 正在拉哪条会话的历史，null 表示没在拉。同时用来挡住连点 */
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null)
   const [toastEl, showToast] = useToast()
 
   /** token 失效时统一处理：清掉本地 token 并回登录页 */
@@ -162,6 +183,52 @@ export default function HomePage() {
     }
   }
 
+  /**
+   * 点侧边栏的会话：把它的历史消息铺到对话区，并把后续发送切到这条会话上。
+   *
+   * <p>正在等回复时不给切 —— 那一轮的回复会落在旧会话名下，切过去等于把它丢在界面外面。
+   * 已经选中的那条也直接返回，省一次没意义的请求。
+   */
+  async function handleSelectConversation(conversation: ChatConversation) {
+    if (historyLoadingId) return
+    if (sending) {
+      showToast('正在等回复，稍后再切换会话', 'error')
+      return
+    }
+    if (conversation.conversationId === sessionId) return
+
+    setHistoryLoadingId(conversation.conversationId)
+    try {
+      const data = await listMessages(conversation.conversationId)
+      // 先铺消息再切 sessionId：中间这一步失败的话，当前会话还是原来那条，不会串台
+      setMessages(toBubbles(data.messages ?? []))
+      setSessionId(conversation.conversationId)
+      setAsk('')
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.code === 401) {
+        backToLogin()
+        return
+      }
+      showToast(apiErr.message, 'error')
+    } finally {
+      setHistoryLoadingId(null)
+    }
+  }
+
+  /**
+   * 开一条新会话：换个 sessionId、清空对话区就完事。
+   *
+   * <p>不调接口 —— 后端在第一次发消息时发现库里没有这个 ID 会自动建会话。
+   * 这里先建一条空会话，只会在侧边栏留下一堆没说过话的「新会话」。
+   */
+  function handleNewConversation() {
+    if (sending || historyLoadingId) return
+    setSessionId(newSessionId())
+    setMessages([])
+    setAsk('')
+  }
+
   async function handleLogout() {
     try {
       await logoutApi()
@@ -212,7 +279,10 @@ export default function HomePage() {
         <ConversationPanel
           conversations={conversations}
           loading={convLoading}
-          onSelect={() => notReady('会话详情')}
+          activeId={sessionId}
+          loadingId={historyLoadingId}
+          onSelect={handleSelectConversation}
+          onNew={handleNewConversation}
         />
       </div>
     </div>

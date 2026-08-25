@@ -267,7 +267,7 @@ public class AgentPipelineService {
      * 不是 {@code @Component}：它的构造器要一个非 bean 的 {@link AgentContext}，
      * 只能靠下面那段 ThreadLocal 投影递进去。
      *
-     * <p>入参形态也一并定死了：改写结果和意图 JSON 各作为一条 SYSTEM 消息垫在原始对话之前。
+     * <p>入参形态也一并定死了：改写结果和意图 JSON 各作为一条 USER 消息垫在原始对话之前。
      * 意图给的是 {@code toJsonMap()} 的产出，和 L3 提示词约定的 schema 一致 ——
      * MasterAgent 不需要知道这份 JSON 是规则、向量还是模型给的。
      */
@@ -403,11 +403,22 @@ public class AgentPipelineService {
         return List.of(msg(MsgRole.USER, "user", question));
     }
 
-    /** 构建 MasterAgent 的输入：改写结果和意图 JSON 作为 SYSTEM 上下文垫在用户问题之前 */
+    /**
+     * 构建 MasterAgent 的输入：改写结果和意图 JSON 垫在用户问题之前，三条都是 USER 角色。
+     *
+     * <p><b>不能用 SYSTEM。</b>{@code AgentBase.notifyPreCall} 会把「已有会话上下文长度」之后的
+     * 消息全部当成被注入的，逐条查 role，撞上 SYSTEM 且 agent 是 {@code ReActAgent}
+     * 就抛 IllegalStateException。它的文案说的是 Hook，但那只是文案写窄了 ——
+     * 校验区分不了 SYSTEM 是 Hook 加的还是调用方传的，这里传的一样会被判死。
+     *
+     * <p>也别改走 {@code sysPrompt}：这两条每轮都变，拼进系统提示词会把前缀打散，
+     * MasterAgent 那边特意用 {@code loadStatic} 保的百炼隐式缓存就白保了。
+     * 逐轮变化的数据本来就该待在 user turn 里。
+     */
     private List<Msg> buildMasterInput(AgentContext context, PipelineResult result) {
         List<Msg> messages = new ArrayList<>();
-        messages.add(msg(MsgRole.SYSTEM, "system", "问题改写结果：\n" + result.effectiveQuery()));
-        messages.add(msg(MsgRole.SYSTEM, "system",
+        messages.add(msg(MsgRole.USER, "user", "问题改写结果：\n" + result.effectiveQuery()));
+        messages.add(msg(MsgRole.USER, "user",
                 "意图识别结果：\n" + JSON.toJSONString(result.intent().toJsonMap())));
         messages.add(msg(MsgRole.USER, "user", context.getRawQuery()));
         return messages;

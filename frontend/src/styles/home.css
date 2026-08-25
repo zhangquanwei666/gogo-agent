@@ -339,6 +339,23 @@
 }
 .side-panel .title h3 { font-size: 15px; font-weight: 600; }
 .side-panel .title .count { font-size: 12px; color: var(--text-3); }
+.side-panel .title-right { display: flex; align-items: center; gap: 8px; }
+
+/* 「+ 新会话」：切走看历史之后总得有路回到一条空会话 */
+.conv-new {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .2s, color .2s;
+}
+.conv-new:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.conv-new:disabled { cursor: default; opacity: .5; }
 
 .conv-list { display: flex; flex-direction: column; gap: 4px; }
 .conv-item {
@@ -352,7 +369,11 @@
     font-family: inherit;
     transition: background .2s;
 }
-.conv-item:hover { background: #f4f7fb; }
+.conv-item:hover:not(:disabled) { background: #f4f7fb; }
+/* 当前正在看的那条。整列表在拉历史时会一起 disabled，所以 active 的样式不受 disabled 影响 */
+.conv-item.active { background: #eef4ff; }
+.conv-item.active .t { color: var(--brand); font-weight: 600; }
+.conv-item:disabled { cursor: default; }
 .conv-item .t {
     font-size: 14px;
     color: var(--text-1);

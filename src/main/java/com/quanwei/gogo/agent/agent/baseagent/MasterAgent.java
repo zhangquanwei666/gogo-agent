@@ -26,10 +26,12 @@ import org.springframework.util.StringUtils;
  *
  * <p>入参由 {@code AgentPipelineService.buildMasterInput} 组装，形态已经定死：
  * <pre>
- * SYSTEM  问题改写结果：…
- * SYSTEM  意图识别结果：{ intents[] / primary_intent / multi_intent / overall_reason }
- * USER    用户的原始输入
+ * USER  问题改写结果：…
+ * USER  意图识别结果：{ intents[] / primary_intent / multi_intent / overall_reason }
+ * USER  用户的原始输入
  * </pre>
+ * 三条全是 USER 而不是 SYSTEM：ReActAgent 的 pre-call 校验不许入参里出现 SYSTEM 消息，
+ * 缘由见 {@code AgentPipelineService.buildMasterInput} 的注释。
  * 意图那条给的是 {@code toJsonMap()} 的产出，本类不需要知道它是规则、向量还是模型给的。
  *
  * <p><b>当前 toolkit 是空的</b>，所以 {@code master-agent-system.md} 里那些

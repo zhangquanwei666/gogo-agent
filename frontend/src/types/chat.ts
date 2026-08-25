@@ -14,6 +14,37 @@ export interface ChatConversationListResp extends BaseResponse {
   conversations: ChatConversation[]
 }
 
+/** POST /api/v1/chat/conversation/messages 入参，对应后端 ChatMessageListReqDTO */
+export interface ChatMessageListReq {
+  /** 要查的会话 ID。userId 由后端从 token 取，不用传 */
+  conversationId: string
+}
+
+/**
+ * 历史消息里的单条记录，对应 ChatMessageDTO。
+ * 和 ChatBubble 不是一回事：这个是接口契约，那个只服务于渲染，转换见 HomePage.toBubbles。
+ */
+export interface ChatMessageItem {
+  messageId: string
+  /** user / agent / system，比 ChatBubble 的 role 多一种 */
+  role: string
+  content: string
+  /** 回复来自哪个智能体，role=agent 时才有值 */
+  agentName?: string
+  /** 意图由哪一级给出，用户消息和老数据没有这一项 */
+  intentSource?: string
+  /** 用户反馈，没反馈过就没有 */
+  feedback?: string
+  createdTime: string
+}
+
+/** POST /api/v1/chat/conversation/messages 出参，对应 ChatMessageListRespDTO */
+export interface ChatMessageListResp extends BaseResponse {
+  conversationId: string
+  total: number
+  messages: ChatMessageItem[]
+}
+
 /** POST /api/v1/chat/send 入参，对应后端 ChatRequest */
 export interface ChatSendReq {
   /** 会话 ID。由前端生成并在整轮会话里保持不变，后端发现库里没有会自动建会话 */

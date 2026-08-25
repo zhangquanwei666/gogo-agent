@@ -2,6 +2,7 @@ package com.quanwei.gogo.agent.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.quanwei.gogo.agent.agent.core.AgentContext;
 import com.quanwei.gogo.agent.agent.enums.AgentNameEnum;
 import com.quanwei.gogo.agent.agent.pipeline.AgentPipelineService;
@@ -13,8 +14,12 @@ import com.quanwei.gogo.agent.common.MessageRoleEnum;
 import com.quanwei.gogo.agent.dto.ChatConversationDTO;
 import com.quanwei.gogo.agent.dto.ChatConversationListReqDTO;
 import com.quanwei.gogo.agent.dto.ChatConversationListRespDTO;
+import com.quanwei.gogo.agent.dto.ChatMessageDTO;
+import com.quanwei.gogo.agent.dto.ChatMessageListReqDTO;
+import com.quanwei.gogo.agent.dto.ChatMessageListRespDTO;
 import com.quanwei.gogo.agent.dto.ChatRequest;
 import com.quanwei.gogo.agent.dto.ChatResponse;
+import com.quanwei.gogo.agent.entity.ChatMessage;
 import com.quanwei.gogo.agent.exception.BizException;
 import com.quanwei.gogo.agent.service.ChatConversationService;
 import com.quanwei.gogo.agent.service.ChatHistoryService;
@@ -225,5 +230,70 @@ public class ChatController {
         dto.setCreatedTime(bo.createdTime());
         dto.setUpdatedTime(bo.updatedTime());
         return dto;
+    }
+
+    /**
+     * 查询某个会话下的全部消息，按时间正序，也就是对话本身的顺序。
+     *
+     * <p>userId 同样取自 token。<b>会话归属校验不在这里</b>，在
+     * {@code ChatHistoryService.listMessages} 里：会话不存在抛 404、不是自己的抛 403，
+     * 两种都由全局异常处理转成响应体。校验放在 service 是有意的 ——
+     * 将来别的入口（比如导出、分享）也要读同一个会话，靠 controller 各写一遍迟早漏一处。
+     */
+    @PostMapping("/conversation/messages")
+    public ChatMessageListRespDTO listMessage(@RequestBody ChatMessageListReqDTO request) {
+
+        String userId = StpUtil.getLoginIdAsString();
+
+        String conversationId = request == null ? null : trimToNull(request.getConversationId());
+        if (conversationId == null) {
+            throw new BizException(ErrorCodeEnum.CONVERSATION_ID_EMPTY);
+        }
+
+        List<ChatMessage> messages = chatHistoryService.listMessages(conversationId, userId);
+
+        List<ChatMessageDTO> items = messages.stream()
+                .map(ChatController::toMessageDTO)
+                .toList();
+
+        log.debug("[CHAT] 查询会话 {} 的历史消息，共 {} 条", conversationId, items.size());
+
+        ChatMessageListRespDTO response = new ChatMessageListRespDTO();
+        response.setConversationId(conversationId);
+        response.setTotal(items.size());
+        response.setMessages(items);
+        return response;
+    }
+
+    /** 实体转 DTO。extra 不整块回显，只把界面用得到的 source 抽出来 */
+    private static ChatMessageDTO toMessageDTO(ChatMessage entity) {
+        ChatMessageDTO dto = new ChatMessageDTO();
+        dto.setMessageId(entity.getMessageId());
+        dto.setRole(entity.getRole());
+        dto.setContent(entity.getContent());
+        dto.setAgentName(entity.getAgentName());
+        dto.setIntentSource(extractIntentSource(entity.getExtra()));
+        dto.setFeedback(entity.getFeedback());
+        dto.setCreatedTime(entity.getCreatedTime());
+        return dto;
+    }
+
+    /**
+     * 从 extra 里抽意图来源。
+     *
+     * <p>解析不出来一律返回 null 而不是抛：extra 是排障用的附加信息，
+     * 用户消息本来就没有，历史数据里还可能是早先版本写进去的别的结构。
+     * 为了界面上一个小角标让整个会话打不开，不值得。
+     */
+    private static String extractIntentSource(String extra) {
+        if (extra == null || extra.isBlank()) {
+            return null;
+        }
+        try {
+            JSONObject json = JSON.parseObject(extra);
+            return json == null ? null : trimToNull(json.getString("source"));
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
